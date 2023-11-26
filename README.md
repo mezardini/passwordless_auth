@@ -1,4 +1,4 @@
-# Django Email Verification API
+# Passwordless_auth Django Email Verification API
 
 ## Overview
 
