@@ -9,7 +9,14 @@ from django.http import HttpResponse
 from .serializers import EmailSerializer, CodeVerificationSerializer, SessionSerializer
 import random
 import string
-
+import jwt
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework import status
+from rest_framework.exceptions import AuthenticationFailed
+from django.contrib.auth import authenticate
+from django.conf import settings
+from .generate_token import generate_access_token
 # Create your views here.
 
 
@@ -37,7 +44,7 @@ class EmailValidatorandMailSender(APIView):
                     fail_silently=False,
                 )
                 CodeVerification.verify_code(
-                    request, EmailValidatorandMailSender.verification_code)
+                    request, EmailValidatorandMailSender.verification_code, email)
             else:
                 return Response({'message': f'{email} is not a valid email address.'}, status=status.HTTP_400_BAD_REQUEST)
         else:
@@ -46,12 +53,19 @@ class EmailValidatorandMailSender(APIView):
     pass
 
 class CodeVerification(APIView):
-    def verify_code(self, request, verification_code):
+    def verify_code(self, request, verification_code, email):
         serializer = CodeVerificationSerializer(data=request.data)
         if serializer.is_valid():
             code = serializer.validated_data.get('code')
             if code == verification_code:
-                return Response({'message': f'User is verified.'}, status=status.HTTP_200_OK)
+                user_token = generate_access_token(email)
+                response = Response()
+                response.set_cookie(key='access_token',
+                                    value=user_token, httponly=True)
+                response.data = {
+                    'access_token': user_token
+                }
+                return Response({'message': f'User is verified.'}, response, status=status.HTTP_200_OK)
             else:
                 return Response({'message': f'User is not verified.'}, status=status.HTTP_400_BAD_REQUEST)
             
@@ -59,19 +73,3 @@ class CodeVerification(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class SessionAPIView(APIView):
-    def get(self, request):
-        fav_color = request.session.get('fav_color', 'default_color')
-        serializer = SessionSerializer({'fav_color': fav_color})
-        return Response(serializer.data)
-
-    def post(self, request):
-        serializer = SessionSerializer(data=request.data)
-        if serializer.is_valid():
-            request.session['fav_color'] = serializer.validated_data['fav_color']
-            return Response(serializer.data)
-        return Response(serializer.errors, status=400)
-
-    def delete(self, request):
-        request.session.clear()
-        return Response({"message": "Session cleared."})
