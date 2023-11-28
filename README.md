@@ -2,7 +2,7 @@
 
 ## Overview
 
-This Django API provides functionality for email verification, sending verification codes and token authentication.
+This Django API provides functionality for email verification, sending verification codes and JWT authentication.
 
 ## Features
 
